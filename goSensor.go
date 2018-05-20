@@ -22,6 +22,9 @@ import (
 var once sync.Once
 
 const UploadKeyPrefix = "sensor_upload_key_"
+const RedisDataKey = "go_sensor_data"
+const PointInterval = 60 * 10
+const DaysRange = 7
 
 var redisInstance *redis.Client
 var cpuNum = runtime.NumCPU()
@@ -34,12 +37,12 @@ func Redis() *redis.Client {
 }
 
 func main() {
-
-	sensorsLoop()
-	//fmt.Println(routeSensor())
-	//fmt.Println(nasSensor())
-
+	sensorJson()
 	return
+	http.HandleFunc("/loop", func(writer http.ResponseWriter, request *http.Request) {
+		go sensorsLoop()
+		io.WriteString(writer, "ok")
+	})
 	http.HandleFunc("/sensor/upload", sensorUpload)
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		start := time.Now()
@@ -55,7 +58,21 @@ func main() {
 	}
 }
 
+func sensorJson() {
+	list := Redis().LRange(RedisDataKey, 0, DaysRange*86400/PointInterval)
+	fmt.Println(list)
+}
+
+//同时只执行一次
+var onceLock = false
+
 func sensorsLoop() {
+	//同时只执行一次
+	if onceLock {
+		return
+	}
+	onceLock = true
+
 	start := time.Now()
 	if res, ok := oneSensor(); ok {
 		saveData("one", res)
@@ -81,6 +98,7 @@ func sensorsLoop() {
 		saveData("R7000", res)
 	}
 	fmt.Println(time.Since(start))
+	onceLock = false //同时只执行一次
 }
 
 func saveData(name string, data interface{}) {
@@ -97,6 +115,12 @@ func saveData(name string, data interface{}) {
 	if _, ok := saveData["add_time"]; !ok {
 		saveData["add_time"] = time.Now().Unix()
 	}
+
+	saveStr, err := json.Marshal(saveData)
+	if err != nil {
+		log.Fatal(err)
+	}
+	Redis().RPush(RedisDataKey, string(saveStr))
 
 	fmt.Println(saveData)
 }
