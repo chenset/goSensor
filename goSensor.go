@@ -22,7 +22,7 @@ import (
 var once sync.Once
 
 const UploadKeyPrefix = "sensor_upload_key_"
-const RedisDataKey = "go_sensor_data"
+const RedisDataKeyPrefix = "go_sensor_data_key_"
 const PointInterval = 60 * 10
 const DaysRange = 7
 
@@ -37,6 +37,7 @@ func Redis() *redis.Client {
 }
 
 func main() {
+	//sensorsLoop()
 	sensorJson()
 	return
 	http.HandleFunc("/loop", func(writer http.ResponseWriter, request *http.Request) {
@@ -59,8 +60,159 @@ func main() {
 }
 
 func sensorJson() {
-	list := Redis().LRange(RedisDataKey, 0, DaysRange*86400/PointInterval)
-	fmt.Println(list)
+	temperatureData := map[string]interface{}{
+		"temperature_one": map[string]interface{}{
+			"name":           "temperature_one",
+			"redis_key":      RedisDataKeyPrefix + "one",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "temperature",
+			"color":          "#FF9933",
+			"order":          1000,
+			"temperature":    []float64{},
+		},
+		"humidity_one": map[string]interface{}{
+			"name":           "humidity_one",
+			"redis_key":      RedisDataKeyPrefix + "one",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "humidity",
+			"color":          "#0099ff",
+			"order":          2000,
+			"temperature":    []float64{},
+		},
+		"nas": map[string]interface{}{
+			"name":           "nas",
+			"redis_key":      RedisDataKeyPrefix + "nas",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "CPU",
+			"color":          "#FF9933",
+			"order":          3000,
+			"temperature":    []float64{},
+		},
+		"pi": map[string]interface{}{
+			"name":           "pi",
+			"redis_key":      RedisDataKeyPrefix + "pi",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "CPU",
+			"color":          "#FF9933",
+			"order":          4000,
+			"temperature":    []float64{},
+		},
+		"route": map[string]interface{}{
+			"name":           "route",
+			"redis_key":      RedisDataKeyPrefix + "route",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "CPU",
+			"color":          "#FF9933",
+			"order":          5000,
+			"temperature":    []float64{},
+		},
+		"temperature_two": map[string]interface{}{
+			"name":           "temperature_two",
+			"redis_key":      RedisDataKeyPrefix + "two",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "temperature",
+			"color":          "#FF9933",
+			"order":          6000,
+			"temperature":    []float64{},
+		},
+		"humidity_two": map[string]interface{}{
+			"name":           "humidity_two",
+			"redis_key":      RedisDataKeyPrefix + "two",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "humidity",
+			"color":          "#0099ff",
+			"order":          7000,
+			"temperature":    []float64{},
+		},
+		"temperature_three": map[string]interface{}{
+			"name":           "temperature_three",
+			"redis_key":      RedisDataKeyPrefix + "three",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "temperature",
+			"color":          "#FF9933",
+			"order":          8000,
+			"temperature":    []float64{},
+		},
+		"humidity_three": map[string]interface{}{
+			"name":           "humidity_three",
+			"redis_key":      RedisDataKeyPrefix + "three",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "humidity",
+			"color":          "#0099ff",
+			"order":          9000,
+			"temperature":    []float64{},
+		},
+	}
+	//fmt.Println(temperatureData)
+
+	//startTime := int(time.Now().Unix())
+	//lastAddTime := 0
+
+	for _, tempValue := range temperatureData {
+		item, ok := tempValue.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		redisKey, ok := item["redis_key"].(string)
+		if !ok {
+			continue
+		}
+		list, _ := Redis().LRange(redisKey, 0, DaysRange*86400/PointInterval).Result()
+		//fmt.Println(list)
+
+		var jsonO = make(map[string]interface{})
+		for _, jsonStr := range list {
+			json.Unmarshal([]byte(jsonStr), &jsonO)
+
+			item, ok := tempValue.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			pointStart := item["point_start"]
+			if pointStart == 0 {
+				if _, ok := item["point_start"].(int); ok {
+					jsonAddTime,_ :=jsonO["add_time"].(int64)
+					item["point_start"] = jsonAddTime
+					//lastAddTime = int(jsonAddTime)
+					//temperature_data[device][data_key].append(float(v[data_key]))
+				}
+			}
+
+		}
+		//
+		//item, ok := tempValue.(map[string]interface{})
+		//if !ok {
+		//	continue
+		//}
+
+		//pointStart := item["point_start"]
+		//if pointStart == 0 {
+		//	if _, ok := item["point_start"].(int); ok {
+		//		item["point_start"] = item[""]
+		//	}
+		//}
+
+		//if not temperature_data[device]['point_start']:
+		//temperature_data[device]['point_start'] = v['add_time']
+		//last_add_time = v['add_time']
+		//temperature_data[device][data_key].append(float(v[data_key]))
+
+	}
+
+	fmt.Println(temperatureData)
+	//
+	//fmt.Println(list)
 }
 
 //同时只执行一次
@@ -90,12 +242,12 @@ func sensorsLoop() {
 	fmt.Println(time.Since(start))
 	start = time.Now()
 	if res, ok := nasSensor(); ok {
-		saveData("NAS", res)
+		saveData("nas", res)
 	}
 	fmt.Println(time.Since(start))
 	start = time.Now()
 	if res, ok := routeSensor(); ok {
-		saveData("R7000", res)
+		saveData("route", res)
 	}
 	fmt.Println(time.Since(start))
 	onceLock = false //同时只执行一次
@@ -120,7 +272,7 @@ func saveData(name string, data interface{}) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	Redis().RPush(RedisDataKey, string(saveStr))
+	Redis().RPush(RedisDataKeyPrefix+name, string(saveStr))
 
 	fmt.Println(saveData)
 }
