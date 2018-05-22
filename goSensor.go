@@ -38,8 +38,13 @@ func Redis() *redis.Client {
 
 func main() {
 	//sensorsLoop()
-	sensorJson()
-	return
+	//return
+	http.HandleFunc("/sensor.json", func(w http.ResponseWriter, r *http.Request) {
+		str, _ := sensorJson()
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(str)
+		//io.WriteString(w, str)
+	})
 	http.HandleFunc("/loop", func(writer http.ResponseWriter, request *http.Request) {
 		go sensorsLoop()
 		io.WriteString(writer, "ok")
@@ -48,8 +53,8 @@ func main() {
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		start := time.Now()
 
-		Redis := Redis()
-		io.WriteString(writer, strconv.FormatInt(Redis.Incr("fdsfsdgfdwer").Val(), 10))
+		//Redis := Redis()
+		//io.WriteString(writer, strconv.FormatInt(Redis.Incr("fdsfsdgfdwer").Val(), 10))
 		fmt.Println(time.Since(start), request.URL)
 	})
 
@@ -59,7 +64,7 @@ func main() {
 	}
 }
 
-func sensorJson() {
+func sensorJson() ([]byte, error) {
 	temperatureData := map[string]interface{}{
 		"temperature_one": map[string]interface{}{
 			"name":           "temperature_one",
@@ -152,11 +157,7 @@ func sensorJson() {
 			"humidity":       []interface{}{},
 		},
 	}
-	//fmt.Println(temperatureData)
-
-	//startTime := int(time.Now().Unix())
 	lastAddTime := 0
-
 	for _, tempValue := range temperatureData {
 		item, ok := tempValue.(map[string]interface{})
 		if !ok {
@@ -174,17 +175,15 @@ func sensorJson() {
 		for _, jsonStr := range list {
 			json.Unmarshal([]byte(jsonStr), &jsonO)
 
-			item, ok := tempValue.(map[string]interface{})
 			if !ok {
 				continue
 			}
-			jsonAddTime, _ := jsonO["add_time"].(int64)
+			jsonAddTime, _ := jsonO["add_time"].(float64)
 			index, _ := item["index"].(string)
 			indexValue, _ := jsonO[index].(float64)
 			pointStart := item["point_start"]
 			if pointStart == 0 {
 				if _, ok := item["point_start"].(int); ok {
-
 					item["point_start"] = jsonAddTime
 					lastAddTime = int(jsonAddTime)
 				}
@@ -206,43 +205,37 @@ func sensorJson() {
 					indexArr, _ := item[index].([]interface{})
 					item[index] = append(indexArr[:], indexValue)
 				}
-				lastAddTime += PointInterval
+				lastAddTime = lastAddTime + PointInterval
 				whileFlag = 1
 			}
-
-			//while_flag = 0
-			//while last_add_time < v['add_time']:
-			//	if while_flag > 1:
-			//		temperature_data[device][data_key].append(None)  # Is no data in this point
-			//	else:
-			//		temperature_data[device][data_key].append(float(v[data_key]))
-			//	last_add_time += POINT_INTERVAL
-			//	while_flag += 1
-
 		}
-		//
-		//item, ok := tempValue.(map[string]interface{})
-		//if !ok {
-		//	continue
-		//}
-
-		//pointStart := item["point_start"]
-		//if pointStart == 0 {
-		//	if _, ok := item["point_start"].(int); ok {
-		//		item["point_start"] = item[""]
-		//	}
-		//}
-
-		//if not temperature_data[device]['point_start']:
-		//temperature_data[device]['point_start'] = v['add_time']
-		//last_add_time = v['add_time']
-		//temperature_data[device][data_key].append(float(v[data_key]))
-
 	}
 
-	fmt.Println(temperatureData)
+	for k, v := range temperatureData {
+		item, _ := v.(map[string]interface{})
+		index, _ := item["index"].(string)
+
+		itemArr, _ := item[index].([]interface{})
+		if len(itemArr) == 0 {
+			delete(temperatureData, k)
+		}
+		//fmt.Println(item[index])
+		//fmt.Println(k )
+	}
+
+	//for k, v := range temperatureData {
+	//	item, _ := v.(map[string]interface{})
+	//	index, _ := item["index"].(string)
+
+	//itemArr, _ := item[index].([]interface{})
+	//fmt.Println(item[index])
+	//fmt.Println(k )
+	//}
+
+	jsonStr, err := json.Marshal(temperatureData)
+	return jsonStr, err
 	//
-	//fmt.Println(list)
+	//fmt.Println(temperatureData)
 }
 
 //同时只执行一次
