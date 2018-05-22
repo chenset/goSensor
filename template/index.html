@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sensors</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        .box-wrap {
+            height: 80px;
+        }
+
+        .box-wrap .box {
+            float: left;
+            display: block;
+            margin: 5px 5px;
+            width: 110px;
+            height: 100%;
+            border: 1px dashed #ccc;
+            text-align: center;
+        }
+
+        .box-wrap .box h4 {
+            text-align: left;
+        }
+
+        .box-wrap .box .value {
+            line-height: 55px;
+        }
+    </style>
+</head>
+<body>
+<ul class="box-wrap">
+</ul>
+
+<div style="clear: both;width:95%;margin:0 auto;" id="containers-wrap">
+</div>
+<script src="/static/js/jquery-2.1.1.min.js?route=sensor"></script>
+<script src="/static/js/highcharts.js?route=sensor"></script>
+<script>
+
+    Highcharts.setOptions({
+        global: {
+            useUTC: false //close UTC
+        }
+    });
+
+    $.ajax({
+        method: 'GET',
+        url: '/nas?route=sensor',
+        cache: false,
+        success: function (data) {
+            var html = '', i;
+            for (i in data) {
+                if (!data.hasOwnProperty(i)) {
+                    continue;
+                }
+                html += ' <li class="box"><h4>' + i + '</h4><div class="value nas-cpu">' + data[i] + '</div></li>';
+            }
+
+            $('.box-wrap').append(html);
+        }
+    });
+
+    $.ajax({
+        method: 'GET',
+        url: '/sensor.json?route=sensor',
+        cache: false,
+        success: function (data) {
+            var chartData = data;
+
+            //Loop for each chart
+            for (var k in chartData) {
+                if (!chartData.hasOwnProperty(k)) {
+                    continue;
+                }
+                console.log(chartData[k]);
+                Highcharts.setOptions({
+                    colors: [
+                        Highcharts.Color(chartData[k]['color']).setOpacity(0.8).get('rgba')
+                    ]
+                });
+                generateChart(chartData, k);
+            }
+        }
+    });
+
+
+    function generateChart(chartData, k) {
+        var div = document.createElement("div");
+        div.id = 'container-' + chartData[k]['name'].toLowerCase();
+        div.style.minWidth = "400px";
+        div.style.height = "240px";
+        document.getElementById('containers-wrap').appendChild(div);
+
+        $('#container-' + chartData[k]['name'].toLowerCase()).highcharts({
+            chart: {
+                zoomType: 'x'
+            },
+            title: {
+                text: chartData[k]['name'].toUpperCase()
+            },
+            subtitle: {
+                text: document.ontouchstart === undefined ?
+                        'Click and drag in the plot area to zoom in' :
+                        'Pinch the chart to zoom in'
+            },
+            xAxis: {
+                type: 'datetime',
+                maxZoom: 3600000,  //One hour
+                title: {
+                    text: null
+                }
+            },
+            yAxis: {
+                title: {
+                    text: chartData[k]['name'].toLowerCase() === 'humidity' ? 'humidity' : 'Temperature'
+                },
+                labels: {
+                    style: {
+                        color: '#6e6e70'
+                    }
+                }
+            },
+            tooltip: {
+                shared: true
+            },
+            legend: {
+                enabled: false
+            },
+            plotOptions: {
+                area: {
+                    fillColor: {
+                        linearGradient: {x1: 0, y1: 0, x2: 0, y2: 1},
+                        stops: [
+                            [0, chartData[k]['color']],
+                            [1, Highcharts.Color(chartData[k]['color']).setOpacity(0).get('rgba')]
+                        ]
+                    },
+                    lineWidth: 1,
+                    marker: {
+                        enabled: false
+                    },
+                    shadow: false,
+                    states: {
+                        hover: {
+                            lineWidth: 1
+                        }
+                    },
+                    threshold: null
+                }
+            },
+
+            series: [{
+                type: 'area',
+                name: chartData[k]['index'],
+                pointInterval: parseInt(chartData[k]['point_interval'] + '000', 10),
+                pointStart: parseInt(chartData[k]['point_start'] + '000', 10),
+                data: chartData[k][chartData[k]['index']]
+            }]
+        });
+
+    }
+</script>
+</body>
+</html>

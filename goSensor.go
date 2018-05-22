@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"golang.org/x/crypto/ssh"
 	"net"
+	"html/template"
 )
 
 var once sync.Once
@@ -37,25 +38,51 @@ func Redis() *redis.Client {
 }
 
 func main() {
-	//sensorsLoop()
-	//return
 	http.HandleFunc("/sensor.json", func(w http.ResponseWriter, r *http.Request) {
-		str, _ := sensorJson()
+		byteStr, _ := sensorJson()
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(str)
+		w.Write(byteStr)
 		//io.WriteString(w, str)
 	})
-	http.HandleFunc("/loop", func(writer http.ResponseWriter, request *http.Request) {
+
+	http.HandleFunc("/loop", func(w http.ResponseWriter, r *http.Request) {
 		go sensorsLoop()
-		io.WriteString(writer, "ok")
+		io.WriteString(w, "ok")
 	})
+
+	http.HandleFunc("/nas", func(w http.ResponseWriter, r *http.Request) {
+		str, _ := nasSensor()
+		byteStr, _ := json.Marshal(str)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(byteStr)
+	})
+
 	http.HandleFunc("/sensor/upload", sensorUpload)
-	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+
+	http.HandleFunc("/static/js/jquery-2.1.1.min.js", func(w http.ResponseWriter, r *http.Request) {
+		//prefix := "/static"
+		//file := prefix + r.URL.Path[len(prefix)-1:]
+		file := "./static/js/jquery-2.1.1.min.js"
+		http.ServeFile(w, r, file)
+	})
+
+	http.HandleFunc("/static/js/highcharts.js", func(w http.ResponseWriter, r *http.Request) {
+		//prefix := "/static"
+		//file := prefix + r.URL.Path[len(prefix)-1:]
+		file := "./static/js/highcharts.js"
+		http.ServeFile(w, r, file)
+	})
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		//Redis := Redis()
-		//io.WriteString(writer, strconv.FormatInt(Redis.Incr("fdsfsdgfdwer").Val(), 10))
-		fmt.Println(time.Since(start), request.URL)
+		html, err := template.ParseFiles("template/index.html")
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+		}
+		html.Execute(w, nil)
+
+		fmt.Println(time.Since(start), r.URL)
 	})
 
 	err := http.ListenAndServe(":8080", nil)
@@ -397,14 +424,17 @@ func nasSensor() (map[string]interface{}, bool) {
 	re := regexp.MustCompile(`Core\s\d:\s+\+(\d+\.?\d*)`)
 
 	data := make(map[string]interface{}, cpuNum)
+	coreSum := 0.00
 	for k, v := range re.FindAllStringSubmatch(string(opBytes), cpuNum) {
 		temp, err := strconv.ParseFloat(v[1], 64)
 		if err != nil {
 			log.Fatal(err)
 		}
-
+		coreSum += temp
 		data["CPU"+strconv.Itoa(k)] = temp
 	}
+
+	data["CPU"] = coreSum / float64(cpuNum)
 
 	return data, true
 }
