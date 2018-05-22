@@ -69,7 +69,7 @@ func sensorJson() {
 			"index":          "temperature",
 			"color":          "#FF9933",
 			"order":          1000,
-			"temperature":    []float64{},
+			"temperature":    []interface{}{},
 		},
 		"humidity_one": map[string]interface{}{
 			"name":           "humidity_one",
@@ -79,7 +79,7 @@ func sensorJson() {
 			"index":          "humidity",
 			"color":          "#0099ff",
 			"order":          2000,
-			"temperature":    []float64{},
+			"humidity":       []interface{}{},
 		},
 		"nas": map[string]interface{}{
 			"name":           "nas",
@@ -89,7 +89,7 @@ func sensorJson() {
 			"index":          "CPU",
 			"color":          "#FF9933",
 			"order":          3000,
-			"temperature":    []float64{},
+			"CPU":            []interface{}{},
 		},
 		"pi": map[string]interface{}{
 			"name":           "pi",
@@ -99,7 +99,7 @@ func sensorJson() {
 			"index":          "CPU",
 			"color":          "#FF9933",
 			"order":          4000,
-			"temperature":    []float64{},
+			"CPU":            []interface{}{},
 		},
 		"route": map[string]interface{}{
 			"name":           "route",
@@ -109,7 +109,7 @@ func sensorJson() {
 			"index":          "CPU",
 			"color":          "#FF9933",
 			"order":          5000,
-			"temperature":    []float64{},
+			"CPU":            []interface{}{},
 		},
 		"temperature_two": map[string]interface{}{
 			"name":           "temperature_two",
@@ -119,7 +119,7 @@ func sensorJson() {
 			"index":          "temperature",
 			"color":          "#FF9933",
 			"order":          6000,
-			"temperature":    []float64{},
+			"temperature":    []interface{}{},
 		},
 		"humidity_two": map[string]interface{}{
 			"name":           "humidity_two",
@@ -129,7 +129,7 @@ func sensorJson() {
 			"index":          "humidity",
 			"color":          "#0099ff",
 			"order":          7000,
-			"temperature":    []float64{},
+			"humidity":       []interface{}{},
 		},
 		"temperature_three": map[string]interface{}{
 			"name":           "temperature_three",
@@ -139,7 +139,7 @@ func sensorJson() {
 			"index":          "temperature",
 			"color":          "#FF9933",
 			"order":          8000,
-			"temperature":    []float64{},
+			"temperature":    []interface{}{},
 		},
 		"humidity_three": map[string]interface{}{
 			"name":           "humidity_three",
@@ -149,13 +149,13 @@ func sensorJson() {
 			"index":          "humidity",
 			"color":          "#0099ff",
 			"order":          9000,
-			"temperature":    []float64{},
+			"humidity":       []interface{}{},
 		},
 	}
 	//fmt.Println(temperatureData)
 
 	//startTime := int(time.Now().Unix())
-	//lastAddTime := 0
+	lastAddTime := 0
 
 	for _, tempValue := range temperatureData {
 		item, ok := tempValue.(map[string]interface{})
@@ -178,16 +178,46 @@ func sensorJson() {
 			if !ok {
 				continue
 			}
-
+			jsonAddTime, _ := jsonO["add_time"].(int64)
+			index, _ := item["index"].(string)
+			indexValue, _ := jsonO[index].(float64)
 			pointStart := item["point_start"]
 			if pointStart == 0 {
 				if _, ok := item["point_start"].(int); ok {
-					jsonAddTime,_ :=jsonO["add_time"].(int64)
+
 					item["point_start"] = jsonAddTime
-					//lastAddTime = int(jsonAddTime)
-					//temperature_data[device][data_key].append(float(v[data_key]))
+					lastAddTime = int(jsonAddTime)
 				}
+
+				indexArr, _ := item[index].([]interface{})
+				item[index] = append(indexArr[:], indexValue)
 			}
+
+			whileFlag := 0
+			for {
+				if lastAddTime >= int(jsonAddTime) {
+					break
+				}
+
+				if whileFlag > 1 {
+					indexArr, _ := item[index].([]interface{})
+					item[index] = append(indexArr[:], nil)
+				} else {
+					indexArr, _ := item[index].([]interface{})
+					item[index] = append(indexArr[:], indexValue)
+				}
+				lastAddTime += PointInterval
+				whileFlag = 1
+			}
+
+			//while_flag = 0
+			//while last_add_time < v['add_time']:
+			//	if while_flag > 1:
+			//		temperature_data[device][data_key].append(None)  # Is no data in this point
+			//	else:
+			//		temperature_data[device][data_key].append(float(v[data_key]))
+			//	last_add_time += POINT_INTERVAL
+			//	while_flag += 1
 
 		}
 		//
