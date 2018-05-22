@@ -76,6 +76,11 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
+		if string(r.URL.Path) != "/"{
+			w.WriteHeader(404)
+			return
+		}
+
 		html, err := template.ParseFiles("template/index.html")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
@@ -85,7 +90,7 @@ func main() {
 		fmt.Println(time.Since(start), r.URL)
 	})
 
-	err := http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(":88", nil)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
