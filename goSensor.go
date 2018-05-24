@@ -18,6 +18,8 @@ import (
 	"golang.org/x/crypto/ssh"
 	"net"
 	"html/template"
+	"strings"
+	"compress/gzip"
 )
 
 var once sync.Once
@@ -37,46 +39,78 @@ func Redis() *redis.Client {
 	return redisInstance
 }
 
+type gzipResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+}
+
+func (w gzipResponseWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+func makeGzipHandler(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			fn(w, r)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		gzr := gzipResponseWriter{Writer: gz, ResponseWriter: w}
+		fn(gzr, r)
+	}
+}
+
 func main() {
-	http.HandleFunc("/sensor.json", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/sensor.json", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		byteStr, _ := sensorJson()
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(byteStr)
 		//io.WriteString(w, str)
-	})
+		fmt.Println(time.Since(start), r.URL)
+	}))
 
 	http.HandleFunc("/loop", func(w http.ResponseWriter, r *http.Request) {
 		go sensorsLoop()
 		io.WriteString(w, "ok")
 	})
 
-	http.HandleFunc("/nas", func(w http.ResponseWriter, r *http.Request) {
-		str, _ := nasSensor()
+	http.HandleFunc("/nas", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
+		str, ok := nasSensor()
+		if !ok {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(500)
+			io.WriteString(w, "Failed to read sensors")
+			return
+		}
 		byteStr, _ := json.Marshal(str)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(byteStr)
-	})
+	}))
 
 	http.HandleFunc("/sensor/upload", sensorUpload)
 
-	http.HandleFunc("/static/js/jquery-2.1.1.min.js", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/static/js/jquery-2.1.1.min.js", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
 		//prefix := "/static"
 		//file := prefix + r.URL.Path[len(prefix)-1:]
 		file := "./static/js/jquery-2.1.1.min.js"
 		http.ServeFile(w, r, file)
-	})
+	}))
 
-	http.HandleFunc("/static/js/highcharts.js", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/static/js/highcharts.js",makeGzipHandler( func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/x-javascript")
 		//prefix := "/static"
 		//file := prefix + r.URL.Path[len(prefix)-1:]
 		file := "./static/js/highcharts.js"
 		http.ServeFile(w, r, file)
-	})
+	}))
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-
-		if string(r.URL.Path) != "/"{
+		w.Header().Set("Content-Type", "text/html")
+		if string(r.URL.Path) != "/" {
 			w.WriteHeader(404)
 			return
 		}
@@ -88,7 +122,7 @@ func main() {
 		html.Execute(w, nil)
 
 		fmt.Println(time.Since(start), r.URL)
-	})
+	}))
 
 	err := http.ListenAndServe(":88", nil)
 	if err != nil {
@@ -417,7 +451,7 @@ func nasSensor() (map[string]interface{}, bool) {
 	defer stdout.Close()
 	// 运行命令
 	if err := cmd.Start(); err != nil {
-		log.Fatal(err)
+		return make(map[string]interface{}), false
 	}
 	// 读取输出结果
 	opBytes, err := ioutil.ReadAll(stdout)
@@ -549,7 +583,7 @@ func sensorUpload(w http.ResponseWriter, r *http.Request) {
 	//}
 
 	w.Header().Set("content-type", "application/json")
-	w.Write(insertStr)
-	//io.WriteString(w, "ok")
+	//w.Write(insertStr)
+	io.WriteString(w, "ok")
 	fmt.Println(time.Since(start), r.URL)
 }
