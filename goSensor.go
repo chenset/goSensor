@@ -122,6 +122,7 @@ func main() {
 		html, err := template.ParseFiles(execDir + "/template/index.html")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
+			return
 		}
 		html.Execute(w, nil)
 
