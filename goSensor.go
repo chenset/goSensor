@@ -20,6 +20,8 @@ import (
 	"html/template"
 	"strings"
 	"compress/gzip"
+	"os"
+	"path/filepath"
 )
 
 var once sync.Once
@@ -29,6 +31,8 @@ const RedisDataKeyPrefix = "go_sensor_data_key_"
 const PointInterval = 60 * 10
 const DaysRange = 7
 
+var execPath, _ = os.Executable()    // 获得程序路径
+var execDir = filepath.Dir(execPath) // 程序路径
 var redisInstance *redis.Client
 var cpuNum = runtime.NumCPU()
 //singleton
@@ -95,15 +99,15 @@ func main() {
 	http.HandleFunc("/static/js/jquery-2.1.1.min.js", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
 		//prefix := "/static"
 		//file := prefix + r.URL.Path[len(prefix)-1:]
-		file := "./static/js/jquery-2.1.1.min.js"
+		file := execDir + "/static/js/jquery-2.1.1.min.js"
 		http.ServeFile(w, r, file)
 	}))
 
-	http.HandleFunc("/static/js/highcharts.js",makeGzipHandler( func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/static/js/highcharts.js", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/x-javascript")
 		//prefix := "/static"
 		//file := prefix + r.URL.Path[len(prefix)-1:]
-		file := "./static/js/highcharts.js"
+		file := execDir + "/static/js/highcharts.js"
 		http.ServeFile(w, r, file)
 	}))
 
@@ -115,7 +119,7 @@ func main() {
 			return
 		}
 
-		html, err := template.ParseFiles("template/index.html")
+		html, err := template.ParseFiles(execDir + "/template/index.html")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 		}
