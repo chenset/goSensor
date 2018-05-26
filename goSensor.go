@@ -28,6 +28,7 @@ var once sync.Once
 
 const UploadKeyPrefix = "sensor_upload_key_"
 const RedisDataKeyPrefix = "go_sensor_data_key_"
+const RedisSensorJsonKey = "sensor_json_cache_key_1"
 const PointInterval = 60 * 10
 const DaysRange = 7
 
@@ -69,15 +70,20 @@ func makeGzipHandler(fn http.HandlerFunc) http.HandlerFunc {
 func main() {
 	http.HandleFunc("/sensor.json", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		byteStr, _ := sensorJson()
+
+		res, err := Redis().Get(RedisSensorJsonKey).Result()
+		if err != nil {
+			res = sensorJsonCache()
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(byteStr)
-		//io.WriteString(w, str)
+		io.WriteString(w, res)
 		fmt.Println(time.Since(start), r.URL)
 	}))
 
 	http.HandleFunc("/loop", func(w http.ResponseWriter, r *http.Request) {
-		go sensorsLoop()
+		sensorsLoop()
+		sensorJsonCache()
 		io.WriteString(w, "ok")
 	})
 
@@ -133,6 +139,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+}
+
+func sensorJsonCache() string {
+	byteStr, _ := sensorJson()
+	Redis().Set(RedisSensorJsonKey, string(byteStr), 800e9) //800s
+	return string(byteStr)
 }
 
 func sensorJson() ([]byte, error) {
