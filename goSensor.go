@@ -53,12 +53,14 @@ func (w gzipResponseWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-func makeGzipHandler(fn http.HandlerFunc) http.HandlerFunc {
+func commonHandler(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			fn(w, r)
 			return
 		}
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Server", "flySay.com")
 		w.Header().Set("Content-Encoding", "gzip")
 		gz := gzip.NewWriter(w)
 		defer gz.Close()
@@ -68,7 +70,7 @@ func makeGzipHandler(fn http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-	http.HandleFunc("/sensor.json", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/sensor.json", commonHandler(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
 		res, err := Redis().Get(RedisSensorJsonKey).Result()
@@ -87,7 +89,7 @@ func main() {
 		io.WriteString(w, "ok")
 	})
 
-	http.HandleFunc("/nas", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/nas.json", commonHandler(func(w http.ResponseWriter, r *http.Request) {
 		str, ok := nasSensor()
 		if !ok {
 			w.Header().Set("Content-Type", "text/plain")
@@ -102,14 +104,14 @@ func main() {
 
 	http.HandleFunc("/sensor/upload", sensorUpload)
 
-	http.HandleFunc("/static/js/jquery-2.1.1.min.js", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/static/js/jquery-2.1.1.min.js", commonHandler(func(w http.ResponseWriter, r *http.Request) {
 		//prefix := "/static"
 		//file := prefix + r.URL.Path[len(prefix)-1:]
 		file := execDir + "/static/js/jquery-2.1.1.min.js"
 		http.ServeFile(w, r, file)
 	}))
 
-	http.HandleFunc("/static/js/highcharts.js", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/static/js/highcharts.js", commonHandler(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/x-javascript")
 		//prefix := "/static"
 		//file := prefix + r.URL.Path[len(prefix)-1:]
@@ -117,7 +119,7 @@ func main() {
 		http.ServeFile(w, r, file)
 	}))
 
-	http.HandleFunc("/", makeGzipHandler(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", commonHandler(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		w.Header().Set("Content-Type", "text/html")
 		if string(r.URL.Path) != "/" {

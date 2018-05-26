@@ -40,7 +40,6 @@
 <script src="/static/js/jquery-2.1.1.min.js"></script>
 <script src="/static/js/highcharts.js"></script>
 <script>
-
     Highcharts.setOptions({
         global: {
             useUTC: false //close UTC
@@ -48,24 +47,7 @@
     });
 
     $.ajax({
-        method: 'GET',
-        url: '/nas',
-        cache: false,
-        success: function (data) {
-            var html = '', i;
-            for (i in data) {
-                if (!data.hasOwnProperty(i)) {
-                    continue;
-                }
-                html += ' <li class="box"><h4>' + i + '</h4><div class="value nas-cpu">' + data[i] + '</div></li>';
-            }
-
-            $('.box-wrap').append(html);
-        }
-    });
-
-    $.ajax({
-        method: 'GET',
+        method: 'POST',
         url: '/sensor.json',
         cache: false,
         success: function (data) {
@@ -87,6 +69,22 @@
         }
     });
 
+    $.ajax({
+        method: 'POST',
+        url: '/nas.json',
+        cache: false,
+        success: function (data) {
+            var html = '', i;
+            for (i in data) {
+                if (!data.hasOwnProperty(i)) {
+                    continue;
+                }
+                html += ' <li class="box"><h4>' + i + '</h4><div class="value nas-cpu">' + data[i] + '</div></li>';
+            }
+
+            $('.box-wrap').append(html);
+        }
+    });
 
     function generateChart(chartData, k) {
         var div = document.createElement("div");
