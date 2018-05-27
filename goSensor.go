@@ -160,8 +160,10 @@ func sensorJson() ([]byte, error) {
 			"index":          "CPU",
 			"color":          "#FF9933",
 			"order":          1000,
-			"unit":           "degrees",
+			"unit":           "Degrees",
 			"CPU":            []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
 		},
 		"pi": map[string]interface{}{
 			"name":           "pi",
@@ -171,8 +173,10 @@ func sensorJson() ([]byte, error) {
 			"index":          "CPU",
 			"color":          "#FF9933",
 			"order":          2000,
-			"unit":           "degrees",
+			"unit":           "Degrees",
 			"CPU":            []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
 		},
 		"route": map[string]interface{}{
 			"name":           "route",
@@ -182,8 +186,10 @@ func sensorJson() ([]byte, error) {
 			"index":          "CPU",
 			"color":          "#FF9933",
 			"order":          3000,
-			"unit":           "degrees",
+			"unit":           "Degrees",
 			"CPU":            []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
 		},
 
 		"temperature_one": map[string]interface{}{
@@ -194,8 +200,10 @@ func sensorJson() ([]byte, error) {
 			"index":          "temperature",
 			"color":          "#FF9933",
 			"order":          4000,
-			"unit":           "degrees",
+			"unit":           "Degrees",
 			"temperature":    []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
 		},
 		"humidity_one": map[string]interface{}{
 			"name":           "humidity_one",
@@ -205,8 +213,10 @@ func sensorJson() ([]byte, error) {
 			"index":          "humidity",
 			"color":          "#0099ff",
 			"order":          5000,
-			"unit":           "percent",
+			"unit":           "Percent",
 			"humidity":       []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
 		},
 		"temperature_two": map[string]interface{}{
 			"name":           "temperature_two",
@@ -215,9 +225,11 @@ func sensorJson() ([]byte, error) {
 			"point_interval": PointInterval,
 			"index":          "temperature",
 			"color":          "#FF9933",
-			"unit":           "degrees",
+			"unit":           "Degrees",
 			"order":          6000,
 			"temperature":    []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
 		},
 		"humidity_two": map[string]interface{}{
 			"name":           "humidity_two",
@@ -227,8 +239,10 @@ func sensorJson() ([]byte, error) {
 			"index":          "humidity",
 			"color":          "#0099ff",
 			"order":          7000,
-			"unit":           "percent",
+			"unit":           "Percent",
 			"humidity":       []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
 		},
 		"temperature_three": map[string]interface{}{
 			"name":           "temperature_three",
@@ -238,8 +252,10 @@ func sensorJson() ([]byte, error) {
 			"index":          "temperature",
 			"color":          "#FF9933",
 			"order":          8000,
-			"unit":           "degrees",
+			"unit":           "Degrees",
 			"temperature":    []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
 		},
 		"humidity_three": map[string]interface{}{
 			"name":           "humidity_three",
@@ -249,8 +265,10 @@ func sensorJson() ([]byte, error) {
 			"index":          "humidity",
 			"color":          "#0099ff",
 			"order":          9000,
-			"unit":           "percent",
+			"unit":           "Percent",
 			"humidity":       []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
 		},
 	}
 	lastAddTime := 0
@@ -277,6 +295,19 @@ func sensorJson() ([]byte, error) {
 			jsonAddTime, _ := jsonO["add_time"].(float64)
 			index, _ := item["index"].(string)
 			indexValue, _ := jsonO[index].(float64)
+
+			//max
+			maxValue, _ := item["max"].(float64)
+			if indexValue > maxValue {
+				item["max"] = indexValue
+			}
+
+			//min
+			minValue, _ := item["min"].(float64)
+			if indexValue < minValue {
+				item["min"] = indexValue
+			}
+
 			pointStart := item["point_start"]
 			if pointStart == 0 {
 				if _, ok := item["point_start"].(int); ok {
@@ -315,8 +346,6 @@ func sensorJson() ([]byte, error) {
 		if len(itemArr) == 0 {
 			delete(temperatureData, k)
 		}
-		//fmt.Println(item[index])
-		//fmt.Println(k )
 	}
 
 	//map to  slice

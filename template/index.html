@@ -101,9 +101,7 @@
                 text: chartData[k]['name'].toUpperCase()
             },
             subtitle: {
-                text: document.ontouchstart === undefined ?
-                        'Click and drag in the plot area to zoom in' :
-                        'Pinch the chart to zoom in'
+                text: 'Min: ' + chartData[k]['min'] + ' Max: ' + chartData[k]['max']
             },
             xAxis: {
                 type: 'datetime',
@@ -114,7 +112,7 @@
             },
             yAxis: {
                 title: {
-                    text: chartData[k]['unit'].toLowerCase()
+                    text: chartData[k]['unit']
                 },
                 labels: {
                     style: {
