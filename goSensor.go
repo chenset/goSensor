@@ -22,6 +22,7 @@ import (
 	"compress/gzip"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 var once sync.Once
@@ -151,26 +152,6 @@ func sensorJsonCache() string {
 
 func sensorJson() ([]byte, error) {
 	temperatureData := map[string]interface{}{
-		"temperature_one": map[string]interface{}{
-			"name":           "temperature_one",
-			"redis_key":      RedisDataKeyPrefix + "one",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "temperature",
-			"color":          "#FF9933",
-			"order":          1000,
-			"temperature":    []interface{}{},
-		},
-		"humidity_one": map[string]interface{}{
-			"name":           "humidity_one",
-			"redis_key":      RedisDataKeyPrefix + "one",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "humidity",
-			"color":          "#0099ff",
-			"order":          2000,
-			"humidity":       []interface{}{},
-		},
 		"nas": map[string]interface{}{
 			"name":           "nas",
 			"redis_key":      RedisDataKeyPrefix + "nas",
@@ -178,7 +159,8 @@ func sensorJson() ([]byte, error) {
 			"point_interval": PointInterval,
 			"index":          "CPU",
 			"color":          "#FF9933",
-			"order":          3000,
+			"order":          1000,
+			"unit":           "degrees",
 			"CPU":            []interface{}{},
 		},
 		"pi": map[string]interface{}{
@@ -188,7 +170,8 @@ func sensorJson() ([]byte, error) {
 			"point_interval": PointInterval,
 			"index":          "CPU",
 			"color":          "#FF9933",
-			"order":          4000,
+			"order":          2000,
+			"unit":           "degrees",
 			"CPU":            []interface{}{},
 		},
 		"route": map[string]interface{}{
@@ -198,8 +181,32 @@ func sensorJson() ([]byte, error) {
 			"point_interval": PointInterval,
 			"index":          "CPU",
 			"color":          "#FF9933",
-			"order":          5000,
+			"order":          3000,
+			"unit":           "degrees",
 			"CPU":            []interface{}{},
+		},
+
+		"temperature_one": map[string]interface{}{
+			"name":           "temperature_one",
+			"redis_key":      RedisDataKeyPrefix + "one",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "temperature",
+			"color":          "#FF9933",
+			"order":          4000,
+			"unit":           "degrees",
+			"temperature":    []interface{}{},
+		},
+		"humidity_one": map[string]interface{}{
+			"name":           "humidity_one",
+			"redis_key":      RedisDataKeyPrefix + "one",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "humidity",
+			"color":          "#0099ff",
+			"order":          5000,
+			"unit":           "percent",
+			"humidity":       []interface{}{},
 		},
 		"temperature_two": map[string]interface{}{
 			"name":           "temperature_two",
@@ -208,6 +215,7 @@ func sensorJson() ([]byte, error) {
 			"point_interval": PointInterval,
 			"index":          "temperature",
 			"color":          "#FF9933",
+			"unit":           "degrees",
 			"order":          6000,
 			"temperature":    []interface{}{},
 		},
@@ -219,6 +227,7 @@ func sensorJson() ([]byte, error) {
 			"index":          "humidity",
 			"color":          "#0099ff",
 			"order":          7000,
+			"unit":           "percent",
 			"humidity":       []interface{}{},
 		},
 		"temperature_three": map[string]interface{}{
@@ -229,6 +238,7 @@ func sensorJson() ([]byte, error) {
 			"index":          "temperature",
 			"color":          "#FF9933",
 			"order":          8000,
+			"unit":           "degrees",
 			"temperature":    []interface{}{},
 		},
 		"humidity_three": map[string]interface{}{
@@ -239,6 +249,7 @@ func sensorJson() ([]byte, error) {
 			"index":          "humidity",
 			"color":          "#0099ff",
 			"order":          9000,
+			"unit":           "percent",
 			"humidity":       []interface{}{},
 		},
 	}
@@ -296,10 +307,10 @@ func sensorJson() ([]byte, error) {
 		}
 	}
 
+	//delete item if empty
 	for k, v := range temperatureData {
 		item, _ := v.(map[string]interface{})
 		index, _ := item["index"].(string)
-
 		itemArr, _ := item[index].([]interface{})
 		if len(itemArr) == 0 {
 			delete(temperatureData, k)
@@ -308,16 +319,22 @@ func sensorJson() ([]byte, error) {
 		//fmt.Println(k )
 	}
 
-	//for k, v := range temperatureData {
-	//	item, _ := v.(map[string]interface{})
-	//	index, _ := item["index"].(string)
+	//map to  slice
+	var sortData []map[string]interface{}
+	for _, v := range temperatureData {
+		if value, ok := v.(map[string]interface{}); ok {
+			sortData = append(sortData, value)
+		}
+	}
 
-	//itemArr, _ := item[index].([]interface{})
-	//fmt.Println(item[index])
-	//fmt.Println(k )
-	//}
+	//sorted by order
+	sort.Slice(sortData, func(i, j int) bool {
+		first, _ := sortData[i]["order"].(int)
+		second, _ := sortData[j]["order"].(int)
+		return first < second
+	})
 
-	jsonStr, err := json.Marshal(temperatureData)
+	jsonStr, err := json.Marshal(sortData)
 	return jsonStr, err
 	//
 	//fmt.Println(temperatureData)
