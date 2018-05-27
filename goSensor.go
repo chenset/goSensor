@@ -164,6 +164,8 @@ func sensorJson() ([]byte, error) {
 			"CPU":            []interface{}{},
 			"max":            -9999.0,
 			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
 		},
 		"pi": map[string]interface{}{
 			"name":           "pi",
@@ -177,6 +179,8 @@ func sensorJson() ([]byte, error) {
 			"CPU":            []interface{}{},
 			"max":            -9999.0,
 			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
 		},
 		"route": map[string]interface{}{
 			"name":           "route",
@@ -190,6 +194,8 @@ func sensorJson() ([]byte, error) {
 			"CPU":            []interface{}{},
 			"max":            -9999.0,
 			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
 		},
 
 		"temperature_one": map[string]interface{}{
@@ -204,6 +210,8 @@ func sensorJson() ([]byte, error) {
 			"temperature":    []interface{}{},
 			"max":            -9999.0,
 			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
 		},
 		"humidity_one": map[string]interface{}{
 			"name":           "humidity_one",
@@ -217,6 +225,8 @@ func sensorJson() ([]byte, error) {
 			"humidity":       []interface{}{},
 			"max":            -9999.0,
 			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
 		},
 		"temperature_two": map[string]interface{}{
 			"name":           "temperature_two",
@@ -230,6 +240,8 @@ func sensorJson() ([]byte, error) {
 			"temperature":    []interface{}{},
 			"max":            -9999.0,
 			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
 		},
 		"humidity_two": map[string]interface{}{
 			"name":           "humidity_two",
@@ -243,6 +255,8 @@ func sensorJson() ([]byte, error) {
 			"humidity":       []interface{}{},
 			"max":            -9999.0,
 			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
 		},
 		"temperature_three": map[string]interface{}{
 			"name":           "temperature_three",
@@ -256,6 +270,8 @@ func sensorJson() ([]byte, error) {
 			"temperature":    []interface{}{},
 			"max":            -9999.0,
 			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
 		},
 		"humidity_three": map[string]interface{}{
 			"name":           "humidity_three",
@@ -269,6 +285,8 @@ func sensorJson() ([]byte, error) {
 			"humidity":       []interface{}{},
 			"max":            -9999.0,
 			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
 		},
 	}
 	lastAddTime := 0
@@ -300,12 +318,14 @@ func sensorJson() ([]byte, error) {
 			maxValue, _ := item["max"].(float64)
 			if indexValue > maxValue {
 				item["max"] = indexValue
+				item["max_time"] = jsonAddTime
 			}
 
 			//min
 			minValue, _ := item["min"].(float64)
 			if indexValue < minValue {
 				item["min"] = indexValue
+				item["min_time"] = jsonAddTime
 			}
 
 			pointStart := item["point_start"]
