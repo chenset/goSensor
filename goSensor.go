@@ -71,6 +71,15 @@ func commonHandler(fn http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	http.HandleFunc("/nocache/sensor.json", commonHandler(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		res := sensorJsonCache()
+
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, res)
+		fmt.Println(time.Since(start), r.URL)
+	}))
+
 	http.HandleFunc("/sensor.json", commonHandler(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -300,7 +309,7 @@ func sensorJson() ([]byte, error) {
 		if !ok {
 			continue
 		}
-		list, _ := Redis().LRange(redisKey, 0, DaysRange*86400/PointInterval).Result()
+		list, _ := Redis().LRange(redisKey, -DaysRange*86400/PointInterval,-1).Result()
 		//fmt.Println(list)
 
 		var jsonO = make(map[string]interface{})
