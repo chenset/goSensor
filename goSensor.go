@@ -361,8 +361,8 @@ func sensorJson() ([]byte, error) {
 					indexArr, _ := item[index].([]interface{})
 					item[index] = append(indexArr[:], indexValue)
 				}
-				lastAddTime = lastAddTime + PointInterval
-				whileFlag = 1
+				lastAddTime += PointInterval
+				whileFlag += 1
 			}
 		}
 	}
