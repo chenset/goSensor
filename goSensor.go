@@ -71,6 +71,20 @@ func commonHandler(fn http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	//logging
+	defer func() {
+		if err := recover(); err != nil {
+			logfile, err := os.OpenFile(execDir+"/goSensor.error.log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0)
+			if err != nil {
+				fmt.Printf("%s\r\n", err.Error())
+				os.Exit(-1)
+			}
+			defer logfile.Close()
+			logger := log.New(logfile, "\r\n", log.Ldate|log.Ltime|log.Llongfile)
+			logger.Println(err)
+		}
+	}()
+
 	http.HandleFunc("/nocache/sensor.json", commonHandler(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		res := sensorJsonCache()
@@ -309,7 +323,7 @@ func sensorJson() ([]byte, error) {
 		if !ok {
 			continue
 		}
-		list, _ := Redis().LRange(redisKey, -DaysRange*86400/PointInterval,-1).Result()
+		list, _ := Redis().LRange(redisKey, -DaysRange*86400/PointInterval, -1).Result()
 		//fmt.Println(list)
 
 		var jsonO = make(map[string]interface{})
