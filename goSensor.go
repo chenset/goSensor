@@ -73,7 +73,7 @@ func commonHandler(fn http.HandlerFunc) http.HandlerFunc {
 func main() {
 	//logging
 	defer func() {
-		if err := recover(); err != nil {
+		if r := recover(); r != nil {
 			logfile, err := os.OpenFile(execDir+"/goSensor.error.log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0)
 			if err != nil {
 				fmt.Printf("%s\r\n", err.Error())
@@ -81,7 +81,7 @@ func main() {
 			}
 			defer logfile.Close()
 			logger := log.New(logfile, "\r\n", log.Ldate|log.Ltime|log.Llongfile)
-			logger.Println(err)
+			logger.Println(r)
 		}
 	}()
 
