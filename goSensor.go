@@ -163,7 +163,7 @@ func main() {
 
 	err := http.ListenAndServe(":88", nil)
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err)
 	}
 }
 
@@ -467,7 +467,8 @@ func saveData(name string, data interface{}) {
 
 	saveStr, err := json.Marshal(saveData)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
 	}
 	Redis().RPush(RedisDataKeyPrefix+name, string(saveStr))
 
@@ -477,12 +478,14 @@ func saveData(name string, data interface{}) {
 func routeSensor() (map[string]interface{}, bool) {
 	b, err := ioutil.ReadFile("/root/.ssh/route.600.key") // just pass the file name
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return make(map[string]interface{}), false
 	}
 
 	res, err := remoteRun("admin", "10.0.0.1", b, "cat /proc/dmu/temperature")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return make(map[string]interface{}), false
 	}
 
 	re := regexp.MustCompile(`CPU\stemperature\s:\s(\d+\.?\d*)`)
@@ -491,7 +494,8 @@ func routeSensor() (map[string]interface{}, bool) {
 	for _, v := range re.FindAllStringSubmatch(string(res), 1) {
 		temp, err := strconv.ParseFloat(v[1], 64)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			return make(map[string]interface{}), false
 		}
 		data["CPU"] = temp
 	}
@@ -553,7 +557,8 @@ func nasSensor() (map[string]interface{}, bool) {
 	// 获取输出对象，可以从该对象中读取输出结果
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return make(map[string]interface{}), false
 	}
 	// 保证关闭输出流
 	defer stdout.Close()
@@ -564,7 +569,8 @@ func nasSensor() (map[string]interface{}, bool) {
 	// 读取输出结果
 	opBytes, err := ioutil.ReadAll(stdout)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return make(map[string]interface{}), false
 	}
 	//log.Println(string(opBytes))
 
@@ -575,7 +581,8 @@ func nasSensor() (map[string]interface{}, bool) {
 	for k, v := range re.FindAllStringSubmatch(string(opBytes), cpuNum) {
 		temp, err := strconv.ParseFloat(v[1], 64)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+			return make(map[string]interface{}), false
 		}
 		coreSum += temp
 		data["CPU"+strconv.Itoa(k)] = temp
