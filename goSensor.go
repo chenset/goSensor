@@ -222,7 +222,7 @@ func sensorJson() ([]byte, error) {
 		},
 
 		"temperature_one": map[string]interface{}{
-			"name":           "room temperature",
+			"name":           "room_temperature",
 			"redis_key":      RedisDataKeyPrefix + "one",
 			"point_start":    0,
 			"point_interval": PointInterval,
@@ -237,7 +237,7 @@ func sensorJson() ([]byte, error) {
 			"min_time":       0,
 		},
 		"humidity_one": map[string]interface{}{
-			"name":           "room humidity",
+			"name":           "room_humidity",
 			"redis_key":      RedisDataKeyPrefix + "one",
 			"point_start":    0,
 			"point_interval": PointInterval,
@@ -252,7 +252,7 @@ func sensorJson() ([]byte, error) {
 			"min_time":       0,
 		},
 		"temperature_two": map[string]interface{}{
-			"name":           "bedroom temperature",
+			"name":           "bedroom_temperature",
 			"redis_key":      RedisDataKeyPrefix + "two",
 			"point_start":    0,
 			"point_interval": PointInterval,
@@ -267,7 +267,7 @@ func sensorJson() ([]byte, error) {
 			"min_time":       0,
 		},
 		"humidity_two": map[string]interface{}{
-			"name":           "bedroom humidity",
+			"name":           "bedroom_humidity",
 			"redis_key":      RedisDataKeyPrefix + "two",
 			"point_start":    0,
 			"point_interval": PointInterval,
@@ -282,7 +282,7 @@ func sensorJson() ([]byte, error) {
 			"min_time":       0,
 		},
 		"temperature_three": map[string]interface{}{
-			"name":           "outdoor temperature",
+			"name":           "outdoor_temperature",
 			"redis_key":      RedisDataKeyPrefix + "three",
 			"point_start":    0,
 			"point_interval": PointInterval,
@@ -297,7 +297,7 @@ func sensorJson() ([]byte, error) {
 			"min_time":       0,
 		},
 		"humidity_three": map[string]interface{}{
-			"name":           "outdoor humidity",
+			"name":           "outdoor_humidity",
 			"redis_key":      RedisDataKeyPrefix + "three",
 			"point_start":    0,
 			"point_interval": PointInterval,
