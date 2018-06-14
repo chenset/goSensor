@@ -537,7 +537,12 @@ func remoteRun(user string, addr string, privateKey []byte, cmd string) (string,
 	if err != nil {
 		return "", err
 	}
-	defer session.Close()
+
+	defer func() {
+		session.Close()
+		client.Close()
+	}()
+
 	var b bytes.Buffer  // import "bytes"
 	session.Stdout = &b // get output
 	// you can also pass what gets input to the stdin, allowing you to pipe
