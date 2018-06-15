@@ -423,17 +423,17 @@ func sensorsLoop() {
 	onceLock = true
 
 	start := time.Now()
-	if res, ok := oneSensor(); ok {
+	if res, ok := dhtSensor("one"); ok {
 		saveData("one", res)
 	}
 	fmt.Println(time.Since(start))
 	start = time.Now()
-	if res, ok := twoSensor(); ok {
+	if res, ok := dhtSensor("two"); ok {
 		saveData("two", res)
 	}
 	fmt.Println(time.Since(start))
 	start = time.Now()
-	if res, ok := threeSensor(); ok {
+	if res, ok := dhtSensor("three"); ok {
 		saveData("three", res)
 	}
 	fmt.Println(time.Since(start))
@@ -598,36 +598,7 @@ func nasSensor() (map[string]interface{}, bool) {
 	return data, true
 }
 
-func oneSensor() (map[string]interface{}, bool) {
-	chip := "one"
-	str, err := Redis().Get(UploadKeyPrefix + chip).Bytes()
-	if err != nil {
-		fmt.Println(chip + " 无数据")
-		return make(map[string]interface{}), false
-	}
-
-	jsonO := make(map[string]interface{})
-	json.Unmarshal(str, &jsonO)
-
-	return jsonO, true
-}
-
-func twoSensor() (map[string]interface{}, bool) {
-	chip := "two"
-	str, err := Redis().Get(UploadKeyPrefix + chip).Bytes()
-	if err != nil {
-		fmt.Println(chip + " 无数据")
-		return make(map[string]interface{}), false
-	}
-
-	jsonO := make(map[string]interface{})
-	json.Unmarshal(str, &jsonO)
-
-	return jsonO, true
-}
-
-func threeSensor() (map[string]interface{}, bool) {
-	chip := "three"
+func dhtSensor(chip string) (map[string]interface{}, bool) {
 	str, err := Redis().Get(UploadKeyPrefix + chip).Bytes()
 	if err != nil {
 		fmt.Println(chip + " 无数据")
@@ -669,8 +640,19 @@ func sensorUpload(w http.ResponseWriter, r *http.Request) {
 		data["add_time"] = time.Now().Unix()
 	}
 
-	if _, ok = data["chip"]; !ok {
+	chip, ok := data["chip"].(string)
+	if !ok {
 		data["chip"] = "undefined"
+	}
+
+	//validation
+	if chip == "one" || chip == "two" || chip == "three" {
+		humidity, _ := data["humidity"].(float64)
+		temperature, _ := data["temperature"].(float64)
+		if humidity == 0.0 && temperature == 0.0{
+			http.Error(w, "温度湿度不能同时等于0", 500)
+			return
+		}
 	}
 
 	insertStr, err := json.Marshal(data)
