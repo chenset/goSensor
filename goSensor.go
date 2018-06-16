@@ -311,6 +311,36 @@ func sensorJson() ([]byte, error) {
 			"max_time":       0,
 			"min_time":       0,
 		},
+		"temperature_four": map[string]interface{}{
+			"name":           "portable_temperature",
+			"redis_key":      RedisDataKeyPrefix + "four",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "temperature",
+			"color":          "#FF9933",
+			"order":          10000,
+			"unit":           "Degrees",
+			"temperature":    []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
+		},
+		"humidity_four": map[string]interface{}{
+			"name":           "portable_humidity",
+			"redis_key":      RedisDataKeyPrefix + "four",
+			"point_start":    0,
+			"point_interval": PointInterval,
+			"index":          "humidity",
+			"color":          "#0099ff",
+			"order":          11000,
+			"unit":           "Percent",
+			"humidity":       []interface{}{},
+			"max":            -9999.0,
+			"min":            99999.0,
+			"max_time":       0,
+			"min_time":       0,
+		},
 	}
 	lastAddTime := 0
 	for _, tempValue := range temperatureData {
@@ -435,6 +465,11 @@ func sensorsLoop() {
 	start = time.Now()
 	if res, ok := dhtSensor("three"); ok {
 		saveData("three", res)
+	}
+	fmt.Println(time.Since(start))
+	start = time.Now()
+	if res, ok := dhtSensor("four"); ok {
+		saveData("four", res)
 	}
 	fmt.Println(time.Since(start))
 	start = time.Now()
@@ -646,7 +681,7 @@ func sensorUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//validation
-	if chip == "one" || chip == "two" || chip == "three" {
+	if chip == "one" || chip == "two" || chip == "three" || chip == "four" {
 		humidity, _ := data["humidity"].(float64)
 		temperature, _ := data["temperature"].(float64)
 		if humidity == 0.0 && temperature == 0.0{
