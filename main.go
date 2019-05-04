@@ -1,28 +1,27 @@
 package main
 
 import (
-	"net/http"
-	"log"
-	"github.com/go-redis/redis"
-	"io"
-	"strconv"
-	"sync"
-	"fmt"
-	"time"
-	"io/ioutil"
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"fmt"
+	"github.com/go-redis/redis"
+	"golang.org/x/crypto/ssh"
+	"html/template"
+	"io"
+	"io/ioutil"
+	"log"
+	"net"
+	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
-	"bytes"
-	"golang.org/x/crypto/ssh"
-	"net"
-	"html/template"
-	"strings"
-	"compress/gzip"
-	"os"
-	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 var once sync.Once
@@ -33,14 +32,182 @@ const RedisSensorJsonKey = "sensor_json_cache_key_1"
 const PointInterval = 60 * 10
 const DaysRange = 7
 
-var execPath, _ = os.Executable()    // 获得程序路径
-var execDir = filepath.Dir(execPath) // 程序路径
+var temperatureData = map[string]interface{}{
+	"nas": map[string]interface{}{
+		"name":           "nas",
+		"redis_key":      RedisDataKeyPrefix + "nas",
+		"point_start":    0,
+		"point_interval": PointInterval,
+		"index":          "CPU",
+		"color":          "#FF9933",
+		"order":          1000,
+		"unit":           "Degrees",
+		"CPU":            []interface{}{},
+		"max":            -9999.0,
+		"min":            99999.0,
+		"max_time":       0,
+		"min_time":       0,
+	},
+	"pi": map[string]interface{}{
+		"name":           "pi",
+		"redis_key":      RedisDataKeyPrefix + "pi",
+		"point_start":    0,
+		"point_interval": PointInterval,
+		"index":          "CPU",
+		"color":          "#FF9933",
+		"order":          2000,
+		"unit":           "Degrees",
+		"CPU":            []interface{}{},
+		"max":            -9999.0,
+		"min":            99999.0,
+		"max_time":       0,
+		"min_time":       0,
+	},
+	"route": map[string]interface{}{
+		"name":           "route",
+		"redis_key":      RedisDataKeyPrefix + "route",
+		"point_start":    0,
+		"point_interval": PointInterval,
+		"index":          "CPU",
+		"color":          "#FF9933",
+		"order":          3000,
+		"unit":           "Degrees",
+		"CPU":            []interface{}{},
+		"max":            -9999.0,
+		"min":            99999.0,
+		"max_time":       0,
+		"min_time":       0,
+	},
+
+	//		"temperature_one": map[string]interface{}{
+	//			"name":           "room_temperature",
+	//			"redis_key":      RedisDataKeyPrefix + "one",
+	//			"point_start":    0,
+	//			"point_interval": PointInterval,
+	//			"index":          "temperature",
+	//			"color":          "#FF9933",
+	//			"order":          4000,
+	//			"unit":           "Degrees",
+	//			"temperature":    []interface{}{},
+	//			"max":            -9999.0,
+	//			"min":            99999.0,
+	//			"max_time":       0,
+	//			"min_time":       0,
+	//		},
+	//		"humidity_one": map[string]interface{}{
+	//			"name":           "room_humidity",
+	//			"redis_key":      RedisDataKeyPrefix + "one",
+	//			"point_start":    0,
+	//			"point_interval": PointInterval,
+	//			"index":          "humidity",
+	//			"color":          "#0099ff",
+	//			"order":          5000,
+	//			"unit":           "Percent",
+	//			"humidity":       []interface{}{},
+	//			"max":            -9999.0,
+	//			"min":            99999.0,
+	//			"max_time":       0,
+	//			"min_time":       0,
+	//		},
+	"temperature_two": map[string]interface{}{
+		"name":           "bedroom_temperature",
+		"redis_key":      RedisDataKeyPrefix + "two",
+		"point_start":    0,
+		"point_interval": PointInterval,
+		"index":          "temperature",
+		"color":          "#FF9933",
+		"unit":           "Degrees",
+		"order":          6000,
+		"temperature":    []interface{}{},
+		"max":            -9999.0,
+		"min":            99999.0,
+		"max_time":       0,
+		"min_time":       0,
+	},
+	"humidity_two": map[string]interface{}{
+		"name":           "bedroom_humidity",
+		"redis_key":      RedisDataKeyPrefix + "two",
+		"point_start":    0,
+		"point_interval": PointInterval,
+		"index":          "humidity",
+		"color":          "#0099ff",
+		"order":          7000,
+		"unit":           "Percent",
+		"humidity":       []interface{}{},
+		"max":            -9999.0,
+		"min":            99999.0,
+		"max_time":       0,
+		"min_time":       0,
+	},
+	"temperature_three": map[string]interface{}{
+		"name":           "outdoor_temperature",
+		"redis_key":      RedisDataKeyPrefix + "three",
+		"point_start":    0,
+		"point_interval": PointInterval,
+		"index":          "temperature",
+		"color":          "#FF9933",
+		"order":          8000,
+		"unit":           "Degrees",
+		"temperature":    []interface{}{},
+		"max":            -9999.0,
+		"min":            99999.0,
+		"max_time":       0,
+		"min_time":       0,
+	},
+	//		"humidity_three": map[string]interface{}{
+	//			"name":           "outdoor_humidity",
+	//			"redis_key":      RedisDataKeyPrefix + "three",
+	//			"point_start":    0,
+	//			"point_interval": PointInterval,
+	//			"index":          "humidity",
+	//			"color":          "#0099ff",
+	//			"order":          9000,
+	//			"unit":           "Percent",
+	//			"humidity":       []interface{}{},
+	//			"max":            -9999.0,
+	//			"min":            99999.0,
+	//			"max_time":       0,
+	//			"min_time":       0,
+	//		},
+	"temperature_four": map[string]interface{}{
+		"name":           "portable_temperature",
+		"redis_key":      RedisDataKeyPrefix + "four",
+		"point_start":    0,
+		"point_interval": PointInterval,
+		"index":          "temperature",
+		"color":          "#FF9933",
+		"order":          10000,
+		"unit":           "Degrees",
+		"temperature":    []interface{}{},
+		"max":            -9999.0,
+		"min":            99999.0,
+		"max_time":       0,
+		"min_time":       0,
+	},
+	"humidity_four": map[string]interface{}{
+		"name":           "portable_humidity",
+		"redis_key":      RedisDataKeyPrefix + "four",
+		"point_start":    0,
+		"point_interval": PointInterval,
+		"index":          "humidity",
+		"color":          "#0099ff",
+		"order":          11000,
+		"unit":           "Percent",
+		"humidity":       []interface{}{},
+		"max":            -9999.0,
+		"min":            99999.0,
+		"max_time":       0,
+		"min_time":       0,
+	},
+}
+
 var redisInstance *redis.Client
 var cpuNum = runtime.NumCPU()
+
 //singleton
 func Redis() *redis.Client {
 	once.Do(func() {
-		redisInstance = redis.NewClient(&redis.Options{Addr: "10.0.0.2:6379", Password: "", DB: 10,})
+		redisInstance = redis.NewClient(&redis.Options{Addr: "10.0.0.2:6379", Password: "", DB: 10})
 	})
 	return redisInstance
 }
@@ -74,7 +241,7 @@ func main() {
 	//logging
 	defer func() {
 		if r := recover(); r != nil {
-			logfile, err := os.OpenFile(execDir+"/goSensor.error.log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0)
+			logfile, err := os.OpenFile("goSensor.error.log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0)
 			if err != nil {
 				fmt.Printf("%s\r\n", err.Error())
 				os.Exit(-1)
@@ -131,7 +298,7 @@ func main() {
 	http.HandleFunc("/static/js/jquery-2.1.1.min.js", commonHandler(func(w http.ResponseWriter, r *http.Request) {
 		//prefix := "/static"
 		//file := prefix + r.URL.Path[len(prefix)-1:]
-		file := execDir + "/static/js/jquery-2.1.1.min.js"
+		file := "static/js/jquery-2.1.1.min.js"
 		http.ServeFile(w, r, file)
 	}))
 
@@ -139,7 +306,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/x-javascript")
 		//prefix := "/static"
 		//file := prefix + r.URL.Path[len(prefix)-1:]
-		file := execDir + "/static/js/highcharts.js"
+		file := "static/js/highcharts.js"
 		http.ServeFile(w, r, file)
 	}))
 
@@ -151,7 +318,7 @@ func main() {
 			return
 		}
 
-		html, err := template.ParseFiles(execDir + "/template/index.html")
+		html, err := template.ParseFiles("template/index.html")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -174,174 +341,7 @@ func sensorJsonCache() string {
 }
 
 func sensorJson() ([]byte, error) {
-	temperatureData := map[string]interface{}{
-		"nas": map[string]interface{}{
-			"name":           "nas",
-			"redis_key":      RedisDataKeyPrefix + "nas",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "CPU",
-			"color":          "#FF9933",
-			"order":          1000,
-			"unit":           "Degrees",
-			"CPU":            []interface{}{},
-			"max":            -9999.0,
-			"min":            99999.0,
-			"max_time":       0,
-			"min_time":       0,
-		},
-		"pi": map[string]interface{}{
-			"name":           "pi",
-			"redis_key":      RedisDataKeyPrefix + "pi",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "CPU",
-			"color":          "#FF9933",
-			"order":          2000,
-			"unit":           "Degrees",
-			"CPU":            []interface{}{},
-			"max":            -9999.0,
-			"min":            99999.0,
-			"max_time":       0,
-			"min_time":       0,
-		},
-		"route": map[string]interface{}{
-			"name":           "route",
-			"redis_key":      RedisDataKeyPrefix + "route",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "CPU",
-			"color":          "#FF9933",
-			"order":          3000,
-			"unit":           "Degrees",
-			"CPU":            []interface{}{},
-			"max":            -9999.0,
-			"min":            99999.0,
-			"max_time":       0,
-			"min_time":       0,
-		},
 
-//		"temperature_one": map[string]interface{}{
-//			"name":           "room_temperature",
-//			"redis_key":      RedisDataKeyPrefix + "one",
-//			"point_start":    0,
-//			"point_interval": PointInterval,
-//			"index":          "temperature",
-//			"color":          "#FF9933",
-//			"order":          4000,
-//			"unit":           "Degrees",
-//			"temperature":    []interface{}{},
-//			"max":            -9999.0,
-//			"min":            99999.0,
-//			"max_time":       0,
-//			"min_time":       0,
-//		},
-//		"humidity_one": map[string]interface{}{
-//			"name":           "room_humidity",
-//			"redis_key":      RedisDataKeyPrefix + "one",
-//			"point_start":    0,
-//			"point_interval": PointInterval,
-//			"index":          "humidity",
-//			"color":          "#0099ff",
-//			"order":          5000,
-//			"unit":           "Percent",
-//			"humidity":       []interface{}{},
-//			"max":            -9999.0,
-//			"min":            99999.0,
-//			"max_time":       0,
-//			"min_time":       0,
-//		},
-		"temperature_two": map[string]interface{}{
-			"name":           "bedroom_temperature",
-			"redis_key":      RedisDataKeyPrefix + "two",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "temperature",
-			"color":          "#FF9933",
-			"unit":           "Degrees",
-			"order":          6000,
-			"temperature":    []interface{}{},
-			"max":            -9999.0,
-			"min":            99999.0,
-			"max_time":       0,
-			"min_time":       0,
-		},
-		"humidity_two": map[string]interface{}{
-			"name":           "bedroom_humidity",
-			"redis_key":      RedisDataKeyPrefix + "two",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "humidity",
-			"color":          "#0099ff",
-			"order":          7000,
-			"unit":           "Percent",
-			"humidity":       []interface{}{},
-			"max":            -9999.0,
-			"min":            99999.0,
-			"max_time":       0,
-			"min_time":       0,
-		},
-		"temperature_three": map[string]interface{}{
-			"name":           "outdoor_temperature",
-			"redis_key":      RedisDataKeyPrefix + "three",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "temperature",
-			"color":          "#FF9933",
-			"order":          8000,
-			"unit":           "Degrees",
-			"temperature":    []interface{}{},
-			"max":            -9999.0,
-			"min":            99999.0,
-			"max_time":       0,
-			"min_time":       0,
-		},
-//		"humidity_three": map[string]interface{}{
-//			"name":           "outdoor_humidity",
-//			"redis_key":      RedisDataKeyPrefix + "three",
-//			"point_start":    0,
-//			"point_interval": PointInterval,
-//			"index":          "humidity",
-//			"color":          "#0099ff",
-//			"order":          9000,
-//			"unit":           "Percent",
-//			"humidity":       []interface{}{},
-//			"max":            -9999.0,
-//			"min":            99999.0,
-//			"max_time":       0,
-//			"min_time":       0,
-//		},
-		"temperature_four": map[string]interface{}{
-			"name":           "portable_temperature",
-			"redis_key":      RedisDataKeyPrefix + "four",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "temperature",
-			"color":          "#FF9933",
-			"order":          10000,
-			"unit":           "Degrees",
-			"temperature":    []interface{}{},
-			"max":            -9999.0,
-			"min":            99999.0,
-			"max_time":       0,
-			"min_time":       0,
-		},
-		"humidity_four": map[string]interface{}{
-			"name":           "portable_humidity",
-			"redis_key":      RedisDataKeyPrefix + "four",
-			"point_start":    0,
-			"point_interval": PointInterval,
-			"index":          "humidity",
-			"color":          "#0099ff",
-			"order":          11000,
-			"unit":           "Percent",
-			"humidity":       []interface{}{},
-			"max":            -9999.0,
-			"min":            99999.0,
-			"max_time":       0,
-			"min_time":       0,
-		},
-	}
 	lastAddTime := 0
 	for _, tempValue := range temperatureData {
 		item, ok := tempValue.(map[string]interface{})
@@ -684,7 +684,7 @@ func sensorUpload(w http.ResponseWriter, r *http.Request) {
 	if chip == "one" || chip == "two" || chip == "three" || chip == "four" {
 		humidity, _ := data["humidity"].(float64)
 		temperature, _ := data["temperature"].(float64)
-		if humidity == 0.0 && temperature == 0.0{
+		if humidity == 0.0 && temperature == 0.0 {
 			http.Error(w, "温度湿度不能同时等于0", 500)
 			return
 		}
