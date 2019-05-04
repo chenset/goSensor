@@ -32,8 +32,8 @@ const RedisSensorJsonKey = "sensor_json_cache_key_1"
 const PointInterval = 60 * 10
 const DaysRange = 7
 
-var temperatureData = map[string]interface{}{
-	"nas": map[string]interface{}{
+var temperatureData = map[string]map[string]interface{}{
+	"nas": {
 		"name":           "nas",
 		"redis_key":      RedisDataKeyPrefix + "nas",
 		"point_start":    0,
@@ -48,7 +48,7 @@ var temperatureData = map[string]interface{}{
 		"max_time":       0,
 		"min_time":       0,
 	},
-	"pi": map[string]interface{}{
+	"pi": {
 		"name":           "pi",
 		"redis_key":      RedisDataKeyPrefix + "pi",
 		"point_start":    0,
@@ -63,7 +63,7 @@ var temperatureData = map[string]interface{}{
 		"max_time":       0,
 		"min_time":       0,
 	},
-	"route": map[string]interface{}{
+	"route": {
 		"name":           "route",
 		"redis_key":      RedisDataKeyPrefix + "route",
 		"point_start":    0,
@@ -79,7 +79,7 @@ var temperatureData = map[string]interface{}{
 		"min_time":       0,
 	},
 
-	//		"temperature_one": map[string]interface{}{
+	//		"temperature_one": {
 	//			"name":           "room_temperature",
 	//			"redis_key":      RedisDataKeyPrefix + "one",
 	//			"point_start":    0,
@@ -94,7 +94,7 @@ var temperatureData = map[string]interface{}{
 	//			"max_time":       0,
 	//			"min_time":       0,
 	//		},
-	//		"humidity_one": map[string]interface{}{
+	//		"humidity_one": {
 	//			"name":           "room_humidity",
 	//			"redis_key":      RedisDataKeyPrefix + "one",
 	//			"point_start":    0,
@@ -109,7 +109,7 @@ var temperatureData = map[string]interface{}{
 	//			"max_time":       0,
 	//			"min_time":       0,
 	//		},
-	"temperature_two": map[string]interface{}{
+	"temperature_two": {
 		"name":           "bedroom_temperature",
 		"redis_key":      RedisDataKeyPrefix + "two",
 		"point_start":    0,
@@ -124,7 +124,7 @@ var temperatureData = map[string]interface{}{
 		"max_time":       0,
 		"min_time":       0,
 	},
-	"humidity_two": map[string]interface{}{
+	"humidity_two": {
 		"name":           "bedroom_humidity",
 		"redis_key":      RedisDataKeyPrefix + "two",
 		"point_start":    0,
@@ -139,7 +139,7 @@ var temperatureData = map[string]interface{}{
 		"max_time":       0,
 		"min_time":       0,
 	},
-	"temperature_three": map[string]interface{}{
+	"temperature_three": {
 		"name":           "outdoor_temperature",
 		"redis_key":      RedisDataKeyPrefix + "three",
 		"point_start":    0,
@@ -154,7 +154,7 @@ var temperatureData = map[string]interface{}{
 		"max_time":       0,
 		"min_time":       0,
 	},
-	//		"humidity_three": map[string]interface{}{
+	//		"humidity_three": {
 	//			"name":           "outdoor_humidity",
 	//			"redis_key":      RedisDataKeyPrefix + "three",
 	//			"point_start":    0,
@@ -169,7 +169,7 @@ var temperatureData = map[string]interface{}{
 	//			"max_time":       0,
 	//			"min_time":       0,
 	//		},
-	"temperature_four": map[string]interface{}{
+	"temperature_four": {
 		"name":           "portable_temperature",
 		"redis_key":      RedisDataKeyPrefix + "four",
 		"point_start":    0,
@@ -184,7 +184,7 @@ var temperatureData = map[string]interface{}{
 		"max_time":       0,
 		"min_time":       0,
 	},
-	"humidity_four": map[string]interface{}{
+	"humidity_four": {
 		"name":           "portable_humidity",
 		"redis_key":      RedisDataKeyPrefix + "four",
 		"point_start":    0,
@@ -269,6 +269,25 @@ func main() {
 			res = sensorJsonCache()
 		}
 
+		if limit, ok := r.URL.Query()["limit"]; ok && len(limit) == 1 {
+			if count, err := strconv.Atoi(limit[0]); err == nil && count >= 0 {
+				jsonData := make([]map[string]interface{}, 1)
+				json.Unmarshal([]byte(res), &jsonData)
+				for index, item := range jsonData {
+					temp := jsonData[index][item["index"].(string)].([]interface{})
+					tempCount := len(temp)
+					if tempCount > count {
+						jsonData[index][item["index"].(string)] = temp[tempCount-count:]
+					}
+				}
+
+				if byteStr, err := json.Marshal(jsonData); err == nil {
+					res = string(byteStr)
+				}
+			}
+		}
+		//fmt.Println(len(jsonData))
+
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, res)
 		fmt.Println(time.Since(start), r.URL)
@@ -344,10 +363,10 @@ func sensorJson() ([]byte, error) {
 
 	lastAddTime := 0
 	for _, tempValue := range temperatureData {
-		item, ok := tempValue.(map[string]interface{})
-		if !ok {
-			continue
-		}
+		item := tempValue
+		//if !ok {
+		//	continue
+		//}
 
 		redisKey, ok := item["redis_key"].(string)
 		if !ok {
@@ -412,8 +431,8 @@ func sensorJson() ([]byte, error) {
 	}
 
 	//delete item if empty
-	for k, v := range temperatureData {
-		item, _ := v.(map[string]interface{})
+	for k, item := range temperatureData {
+		//item, _ := v.(map[string]interface{})
 		index, _ := item["index"].(string)
 		itemArr, _ := item[index].([]interface{})
 		if len(itemArr) == 0 {
@@ -423,10 +442,10 @@ func sensorJson() ([]byte, error) {
 
 	//map to  slice
 	var sortData []map[string]interface{}
-	for _, v := range temperatureData {
-		if value, ok := v.(map[string]interface{}); ok {
-			sortData = append(sortData, value)
-		}
+	for _, value := range temperatureData {
+		//if value, ok := v.(map[string]interface{}); ok {
+		sortData = append(sortData, value)
+		//}
 	}
 
 	//sorted by order
