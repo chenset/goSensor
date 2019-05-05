@@ -30,7 +30,7 @@ const UploadKeyPrefix = "sensor_upload_key_"
 const RedisDataKeyPrefix = "go_sensor_data_key_"
 const RedisSensorJsonKey = "sensor_json_cache_key"
 const PointInterval = 60 * 10
-const DaysRange = 7
+const DaysRange = 31
 const RedisLeftListStart = -DaysRange * 86400 / PointInterval //lRange/lTrim等使用的start值
 
 var redisInstance *redis.Client
