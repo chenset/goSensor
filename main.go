@@ -28,9 +28,10 @@ var once sync.Once
 
 const UploadKeyPrefix = "sensor_upload_key_"
 const RedisDataKeyPrefix = "go_sensor_data_key_"
-const RedisSensorJsonKey = "sensor_json_cache_key_1"
+const RedisSensorJsonKey = "sensor_json_cache_key"
 const PointInterval = 60 * 10
 const DaysRange = 7
+const RedisLeftListStart = -DaysRange * 86400 / PointInterval //lRange/lTrim等使用的start值
 
 var redisInstance *redis.Client
 var cpuNum = runtime.NumCPU()
@@ -370,7 +371,7 @@ func sensorJson() ([]byte, error) {
 		if !ok {
 			continue
 		}
-		list, _ := Redis().LRange(redisKey, -DaysRange*86400/PointInterval, -1).Result()
+		list, _ := Redis().LRange(redisKey, RedisLeftListStart, -1).Result()
 		//fmt.Println(list)
 
 		var jsonO = make(map[string]interface{})
@@ -523,6 +524,9 @@ func saveData(name string, data interface{}) {
 		return
 	}
 	Redis().RPush(RedisDataKeyPrefix+name, string(saveStr))
+
+	//乘以2是用于冗余两倍的数据量
+	Redis().LTrim(RedisDataKeyPrefix+name, RedisLeftListStart*2, -1)
 
 	fmt.Println(saveData)
 }
