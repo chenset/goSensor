@@ -611,29 +611,11 @@ func remoteRun(user string, addr string, privateKey []byte, cmd string) (string,
 }
 
 func nasSensor() (map[string]interface{}, bool) {
-	// 执行系统命令
-	// 第一个参数是命令名称
-	// 后面参数可以有多个，命令参数
-	cmd := exec.Command("sensors")
-	// 获取输出对象，可以从该对象中读取输出结果
-	stdout, err := cmd.StdoutPipe()
+	opBytes, err := exec.Command("sensors").Output()
 	if err != nil {
 		fmt.Println(err)
 		return make(map[string]interface{}), false
 	}
-	// 保证关闭输出流
-	defer stdout.Close()
-	// 运行命令
-	if err := cmd.Start(); err != nil {
-		return make(map[string]interface{}), false
-	}
-	// 读取输出结果
-	opBytes, err := ioutil.ReadAll(stdout)
-	if err != nil {
-		fmt.Println(err)
-		return make(map[string]interface{}), false
-	}
-	//log.Println(string(opBytes))
 
 	re := regexp.MustCompile(`Core\s\d:\s+\+(\d+\.?\d*)`)
 
