@@ -39,7 +39,7 @@ var cpuNum = runtime.NumCPU()
 //singleton
 func Redis() *redis.Client {
 	once.Do(func() {
-		redisInstance = redis.NewClient(&redis.Options{Addr: "10.0.0.2:6379", Password: "", DB: 10})
+		redisInstance = redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379", Password: "", DB: 10})
 	})
 	return redisInstance
 }
@@ -631,7 +631,7 @@ func nasSensor() (map[string]interface{}, bool) {
 		data["CPU"+strconv.Itoa(k)] = temp
 	}
 
-	data["CPU"] = coreSum / float64(cpuNum)
+	// data["CPU"] = coreSum / float64(cpuNum)
 
 	return data, true
 }
