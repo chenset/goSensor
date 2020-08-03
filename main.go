@@ -610,6 +610,56 @@ func remoteRun(user string, addr string, privateKey []byte, cmd string) (string,
 	return b.String(), err
 }
 
+//coretemp-isa-0000
+//Adapter: ISA adapter
+//Package id 0:  +33.0°C  (high = +80.0°C, crit = +100.0°C)
+//Core 0:        +30.0°C  (high = +80.0°C, crit = +100.0°C)
+//Core 1:        +32.0°C  (high = +80.0°C, crit = +100.0°C)
+//Core 2:        +31.0°C  (high = +80.0°C, crit = +100.0°C)
+//Core 3:        +30.0°C  (high = +80.0°C, crit = +100.0°C)
+//
+//nct6798-isa-0290
+//Adapter: ISA adapter
+//in0:                   720.00 mV (min =  +0.00 V, max =  +1.74 V)
+//in1:                     1.04 V  (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in2:                     3.36 V  (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in3:                     3.34 V  (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in4:                     1.02 V  (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in5:                   136.00 mV (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in6:                   120.00 mV (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in7:                     3.36 V  (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in8:                     3.30 V  (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in9:                   520.00 mV (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in10:                   72.00 mV (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in11:                   56.00 mV (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in12:                    1.06 V  (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in13:                  144.00 mV (min =  +0.00 V, max =  +0.00 V)  ALARM
+//in14:                  840.00 mV (min =  +0.00 V, max =  +0.00 V)  ALARM
+//fan1:                   663 RPM  (min =    0 RPM)
+//fan2:                     0 RPM  (min =    0 RPM)
+//fan3:                     0 RPM  (min =    0 RPM)
+//fan4:                     0 RPM  (min =    0 RPM)
+//fan5:                     0 RPM  (min =    0 RPM)
+//fan7:                     0 RPM  (min =    0 RPM)
+//SYSTIN:                +113.0°C  (high = +36.0°C, hyst = +35.0°C)  ALARM  sensor = thermistor
+//CPUTIN:                 -61.0°C  (high = +36.0°C, hyst = +35.0°C)  sensor = thermistor
+//AUXTIN0:               +102.5°C    sensor = thermistor
+//AUXTIN1:               +115.0°C    sensor = thermistor
+//AUXTIN2:               +116.0°C    sensor = thermistor
+//AUXTIN3:                +35.0°C    sensor = thermistor
+//PECI Agent 0:           +32.5°C  (high = +36.0°C, hyst = +35.0°C)
+//(crit = +100.0°C)
+//PCH_CHIP_CPU_MAX_TEMP:   +0.0°C
+//PCH_CHIP_TEMP:           +0.0°C
+//PCH_CPU_TEMP:            +0.0°C
+//intrusion0:            ALARM
+//intrusion1:            ALARM
+//beep_enable:           disabled
+var cpuRe = regexp.MustCompile(`Core\s\d:\s+\+(\d+\.?\d*)`)
+//var fanRe = regexp.MustCompile(`fan\d:\s+(\d+)\sRPM`)
+//var inRe = regexp.MustCompile(`in\d+:\s+(\d+\.?\d*)\s(mV|V)`)
+var templateRe = regexp.MustCompile(`([^:]+):\s+\+?(\d+\.?\d*)`)
+
 func nasSensor() (map[string]interface{}, bool) {
 	opBytes, err := exec.Command("sensors").Output()
 	if err != nil {
@@ -617,21 +667,56 @@ func nasSensor() (map[string]interface{}, bool) {
 		return make(map[string]interface{}), false
 	}
 
-	re := regexp.MustCompile(`Core\s\d:\s+\+(\d+\.?\d*)`)
-
-	data := make(map[string]interface{}, cpuNum)
+	data := make(map[string]interface{}, 128)
 	coreSum := 0.00
-	for k, v := range re.FindAllStringSubmatch(string(opBytes), cpuNum) {
+	cpuCoreSum := 0
+	for k, v := range cpuRe.FindAllStringSubmatch(string(opBytes), -1) {
 		temp, err := strconv.ParseFloat(v[1], 64)
 		if err != nil {
 			fmt.Println(err)
 			return make(map[string]interface{}), false
 		}
 		coreSum += temp
+		cpuCoreSum++
 		data["CPU"+strconv.Itoa(k)] = temp
 	}
 
-	// data["CPU"] = coreSum / float64(cpuNum)
+	data["CPU"] = coreSum / float64(cpuCoreSum)
+
+	//for k, v := range fanRe.FindAllStringSubmatch(string(opBytes), -1) {
+	//	temp, err := strconv.ParseFloat(v[1], 64)
+	//	if err != nil {
+	//		fmt.Println(err)
+	//		return make(map[string]interface{}), false
+	//	}
+	//	if temp > 0 {
+	//		data["FAN"+strconv.Itoa(k)] = temp
+	//	}
+	//}
+	//
+	//for k, v := range inRe.FindAllStringSubmatch(string(opBytes), -1) {
+	//	temp, err := strconv.ParseFloat(v[1], 64)
+	//	if err != nil {
+	//		fmt.Println(err)
+	//		return make(map[string]interface{}), false
+	//	}
+	//	if temp > 0 {
+	//		data["in"+strconv.Itoa(k)] = temp
+	//	}
+	//}
+
+	for _, str := range strings.Split(string(opBytes), "\n") {
+		for _, v := range templateRe.FindAllStringSubmatch(str, -1) {
+			temp, err := strconv.ParseFloat(v[2], 64)
+			if err != nil {
+				fmt.Println(err)
+				return make(map[string]interface{}), false
+			}
+			if temp > 0 {
+				data[v[1]] = temp
+			}
+		}
+	}
 
 	return data, true
 }
