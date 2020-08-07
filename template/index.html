@@ -79,7 +79,9 @@
                 if (!data.hasOwnProperty(i)) {
                     continue;
                 }
-                html += ' <li class="box"><h4>' + i + '</h4><div class="value nas-cpu">' + data[i] + '</div></li>';
+                if(['CPU','CPU0','CPU1','CPU2','CPU3',,'PECI Agent 0','Package id 0','fan1','in0'].indexOf(i) !== -1){
+                    html += ' <li class="box"><h4>' + i + '</h4><div class="value nas-cpu">' + data[i] + '</div></li>';
+                }
             }
 
             $('.box-wrap').append(html);
